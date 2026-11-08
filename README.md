@@ -42,11 +42,9 @@ backend, frontend and the Docker stack. Swaps go through a separate gateway serv
 backend/                  Node.js API: server.js, lib/, Dockerfile (runs as the `node` user)
 public/                   the web app: app.html, js/ modules, icons, payment sound
 docs/                     architecture.md (operations) and swap-gateway-api.md (gateway contract)
-deploy/                   deploy.sh (rsync + restart over ssh) and the Caddyfile for HTTPS
 docker-compose.yml        monerod, four wallet-rpc instances, Redis, the API
 docker-compose.pool8.yml  wallet-rpc instances 5 to 12
 docker-compose.tls.yml    Caddy on 443 in front of the API
-test_*.js                 the test suites (see Testing)
 .env.example              every setting an operator touches, documented
 ```
 
@@ -56,8 +54,8 @@ Requirements: Docker with Compose, about 40 GB of disk for a pruned Monero node,
 while the node syncs for the first time.
 
 ```bash
-git clone https://github.com/xmrnest/xmrnest-wallet.git
-cd xmrnest-wallet
+git clone https://github.com/xmrnestorg/Xmrnest-monero-web-wallet.git
+cd Xmrnest-monero-web-wallet
 cp .env.example .env          # set REDIS_PASSWORD and HEALTH_TOKEN at least
 docker compose up -d
 ```
@@ -70,10 +68,6 @@ and the API. For more concurrent users add the extra instances:
 docker compose -f docker-compose.yml -f docker-compose.pool8.yml up -d
 ```
 
-For HTTPS, point a domain at the host, set it in `deploy/Caddyfile`, and add
-`docker-compose.tls.yml` to the command above. Caddy obtains the certificate and keeps its
-access log off. Set `SITE_URL` to your domain so the sitemap and link previews point at your
-instance, and see [TRADEMARK.md](TRADEMARK.md) about the name and logo.
 
 ## Configuration
 
@@ -95,9 +89,6 @@ Rules worth knowing before you operate it:
   the instance that holds it.
 - Never delete `data/wallets/*`. Those files hold scan progress; recreating one means a full
   rescan from its restore height.
-- Deploying new code needs a restart of the API container (the code is a read-only mount).
-  `deploy/deploy.sh` does the whole sequence over ssh; it reads the target host from the
-  `HOST` variable or `deploy/.host`, which is ignored by git.
 - `backend/public/` must stay in place (it only holds a `.gitkeep`): Compose mounts the web app
   there inside the read-only backend mount, and the API cannot start without the mount point.
 
@@ -137,28 +128,14 @@ page come from the gateway's config, so the wallet code names no provider.
 Point `SWAP_GATEWAY_URL` at a gateway that follows the document (XmrNest runs one at
 `api.xmrnest.org`), at your own implementation, or leave it empty to hide the page.
 
-## Testing
-
-```bash
-node test_frontend.js        # app.html structure, crypto, state and the signing pipeline; no network
-node test_view_tag.js        # view-tag and tagged-key derivation in crypto.js; no network
-node test_backend.js         # starts the API on :8889 against your local Docker stack
-node test_live_backend.js    # hits a running instance on :8080
-```
-
-The two backend suites need the local stack from `docker compose up -d` and
-`TEST_WALLET_ADDRESS` / `TEST_WALLET_VIEWKEY` in `.env`: a watch-only wallet with a small
-balance. They build unsigned transactions only and never sign or broadcast. The swap routes are
-exercised against a fake gateway the suite starts itself, so no gateway account is needed.
 
 ## Security
 
-Found something? Read [SECURITY.md](SECURITY.md) and email support@xmrnest.org rather than
-opening a public issue. The findings and fixes of the 2026-10 review are in
-[AUDIT_REPORT.md](AUDIT_REPORT.md).
+Found something? email support@xmrnest.org rather than
+opening a public issue. .
 
 ## Licence
 
 Code: [GNU AGPL-3.0](LICENSE). If you run a modified copy as a service, you must publish your
-changes. The XmrNest name and logo are not covered, see [TRADEMARK.md](TRADEMARK.md).
-Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+changes. The XmrNest name and logo are not covered, 
+Contributions are welcome.
