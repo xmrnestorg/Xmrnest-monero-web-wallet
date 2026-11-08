@@ -1,0 +1,2 @@
+# Mount point only: docker-compose bind-mounts ../public here inside the read-only /app mount.
+# Keep this folder (and this file) so the container can start.

@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#ffffff" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<title>XmrNest — Monero Web Wallet</title>
+<script>
+  // Strictly ephemeral security: immediately wipe any storage lingering on this origin
+  try {
+    localStorage.removeItem('xmr_connected_wallets');
+    localStorage.removeItem('xmr_active_wallet_id');
+    localStorage.removeItem('xmr_session');
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch(e) {}
+</script>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-icon-180x180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+
+<style>
+  :root{
+    --orange:#ff6600;
+    --orange-2:#ff7a1a;
+    --black:#121417;
+    --gray-900:#24272d;
+    --gray-700:#59616f;
+    --gray-500:#8a93a3;
+    --gray-300:#d9dde4;
+    --gray-200:#eceff3;
+    --gray-100:#f6f7f9;
+    --white:#ffffff;
+    --green:#19b66a;
+    --shadow:0 18px 50px rgba(20,24,32,.07);
+    --radius:22px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color:var(--black);
+    background:var(--white);
+  }
+  button,input,select,textarea{font:inherit}
+  button{cursor:pointer}
+  a{text-decoration:none;color:inherit}
+  .app{min-height:100vh;display:grid;grid-template-columns:280px 1fr}
+  .sidebar{
+    position:fixed; inset:0 auto 0 0; width:280px;
+    border-right:1px solid var(--gray-200);
+    background:#fff;
+    padding:28px 20px 22px;
+    display:flex; flex-direction:column;
+    z-index:20;
+    overflow:hidden;
+  }
+  .sidebar::after{
+    content:"";
+    position:absolute;
+    width:320px;height:320px;
+    border:62px solid var(--orange);
+    border-bottom-color:#555;
+    border-radius:50%;
+    left:-185px;bottom:60px;
+    opacity:.08;
+    transform:rotate(45deg);
+    pointer-events:none;
+  }
+  .brand{display:flex;align-items:center;gap:12px;margin:0 8px 32px;position:relative;z-index:2;cursor:pointer}
+  .logo{
+    width:48px;height:48px;border-radius:50%;
+    position:relative;overflow:hidden;background:linear-gradient(180deg,var(--orange) 0 50%,#555 50% 100%);
+    flex:0 0 auto;
+  }
+  .logo::before{
+    content:""; position:absolute;left:7px;right:7px;top:15px;height:22px;background:#fff;
+    clip-path:polygon(0 0,50% 53%,100% 0,100% 100%,75% 100%,75% 46%,50% 73%,25% 46%,25% 100%,0 100%);
+  }
+  .brand-logo{display:block;width:100%;max-width:230px;height:auto;margin:-10px 0 -6px -8px}
+  .brand-logo-small{max-width:150px;margin:0}
+  .brand h1{font-size:19px;line-height:1;margin:0;letter-spacing:.02em}
+  .brand span{font-size:11px;color:var(--gray-700);letter-spacing:.16em}
+  .nav{display:grid;gap:8px;position:relative;z-index:2}
+  .nav button{
+    border:0;background:transparent;color:var(--gray-700);
+    display:flex;align-items:center;gap:13px;
+    width:100%;padding:13px 14px;border-radius:14px;
+    text-align:left;font-weight:650;
+    transition:.2s;
+  }
+  .nav button:hover{background:var(--gray-100);color:var(--black)}
+  .nav button.active{background:#fff3eb;color:var(--black);box-shadow:inset 3px 0 0 var(--orange)}
+  .nav svg{width:20px;height:20px;stroke-width:1.8}
+  .side-bottom{
+    margin-top:auto;position:relative;z-index:2;
+    color:var(--gray-500);font-size:12px;line-height:1.6;padding:0 8px;
+  }
+  .side-bottom strong{color:var(--gray-700)}
+  main{grid-column:2;padding:24px 34px 60px;max-width:1480px;width:100%;margin:0 auto}
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;gap:18px;
+    height:52px;color:var(--gray-700);font-size:13px;
+  }
+  .status{display:flex;align-items:center;gap:8px}
+  .dot{width:9px;height:9px;background:var(--green);border-radius:50%;box-shadow:0 0 0 4px rgba(25,182,106,.08);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(25,182,106,.15)}50%{box-shadow:0 0 0 7px rgba(25,182,106,.02)}}
+  .topbar-right{display:flex;align-items:center;gap:12px}
+  .account-switcher-wrap{position:relative}
+  .wallet-chip{
+    display:none;align-items:center;gap:8px;padding:6px 12px;background:var(--gray-100);
+    border:1px solid var(--gray-300);border-radius:12px;font-size:12px;font-weight:600;color:var(--gray-800);
+    cursor:pointer;user-select:none;transition:.15s;
+  }
+  .wallet-chip:hover{background:#fff;border-color:var(--orange)}
+  .wallet-chip.active{display:inline-flex}
+  .wallet-chip .active-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+  .wallet-chip .chevron-down{margin-left:3px;color:var(--gray-500);transition:transform .2s}
+  .wallet-chip.open .chevron-down{transform:rotate(180deg)}
+  .account-dropdown{
+    display:none;position:absolute;top:calc(100% + 8px);right:0;width:min(320px, calc(100vw - 32px));
+    background:#fff;border:1px solid var(--gray-200);border-radius:16px;
+    box-shadow:0 12px 32px rgba(0,0,0,.12);z-index:100;overflow:hidden;
+    animation:fade .18s ease;
+  }
+  .account-dropdown.open{display:block}
+  .account-dropdown-header{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 14px;border-bottom:1px solid var(--gray-200);background:var(--gray-100);
+  }
+  .account-dropdown-title{display:flex;align-items:center;gap:6px;font-weight:700;font-size:12px;color:var(--gray-700)}
+  .account-badge{
+    background:#fff;border:1px solid var(--gray-300);padding:1px 6px;border-radius:8px;font-size:11px;font-weight:750;color:var(--black);
+  }
+  .account-btn-add{
+    display:inline-flex;align-items:center;gap:4px;border:1px solid var(--orange);background:#fff;
+    color:var(--orange);font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;cursor:pointer;transition:.15s;
+  }
+  .account-btn-add:hover{background:var(--orange);color:#fff}
+  .account-dropdown-list{max-height:250px;overflow-y:auto;padding:4px 0}
+  .account-item{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;
+    cursor:pointer;transition:background .15s;
+  }
+  .account-item:hover{background:var(--gray-100)}
+  .account-item.current{background:#fff7f2}
+  .account-item-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+  .account-item-indicator{
+    width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;
+  }
+  .account-item.current .account-item-indicator{background:var(--green);box-shadow:0 0 0 3px rgba(25,182,106,.2)}
+  .account-item-meta{min-width:0}
+  .account-item-title{font-size:12px;font-weight:700;color:var(--black);display:flex;align-items:center;gap:6px}
+  .account-item-addr{font-size:10.5px;color:var(--gray-500);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .account-item-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .account-item-bal{font-size:11px;font-weight:750;color:var(--orange)}
+  .account-item-remove{
+    opacity:0;border:0;background:none;color:var(--gray-500);cursor:pointer;padding:3px;border-radius:5px;display:flex;align-items:center;transition:.15s;
+  }
+  .account-item:hover .account-item-remove{opacity:1}
+  .account-item-remove:hover{color:#cc0000;background:#ffeeee}
+  .account-dropdown-footer{
+    padding:8px 12px;border-top:1px solid var(--gray-200);background:var(--gray-100);display:flex;justify-content:flex-end;
+  }
+  .account-btn-disconnect-all{
+    border:0;background:none;color:var(--gray-600);font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;cursor:pointer;padding:3px 6px;border-radius:6px;transition:.15s;
+  }
+  .account-btn-disconnect-all:hover{color:#cc0000;background:#ffeeee}
+  .btn-logout{
+    border:1px solid var(--gray-300);background:#fff;padding:6px 12px;border-radius:10px;
+    font-size:12px;font-weight:600;color:var(--gray-700);display:none;align-items:center;gap:6px;transition:.2s;
+  }
+  .btn-logout:hover{background:#ffeeee;color:#cc0000;border-color:#ffcccc}
+  .btn-logout.active{display:inline-flex}
+  .icon-btn{border:1px solid var(--gray-200);background:#fff;width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+  .page{display:none;animation:fade .22s ease}
+  .page.active{display:block}
+  @keyframes fade{from{opacity:.45;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .hero{
+    position:relative;overflow:hidden;
+    padding:56px 44px 36px;
+    min-height:340px;
+  }
+  .hero-watermark{
+    position:absolute;right:-40px;top:-30px;width:430px;height:430px;border-radius:50%;
+    background:linear-gradient(180deg,rgba(255,102,0,.13) 0 51%,rgba(36,39,45,.10) 51% 100%);
+    opacity:.95;
+  }
+  .hero-watermark::before{
+    content:"";position:absolute;left:82px;right:82px;top:118px;height:185px;background:#fff;
+    clip-path:polygon(0 0,50% 46%,100% 0,100% 100%,72% 100%,72% 50%,50% 72%,28% 50%,28% 100%,0 100%);
+  }
+  .eyebrow{font-size:15px;color:var(--gray-700);font-weight:700;margin-bottom:8px}
+  .hero h2{font-size:48px;max-width:720px;line-height:1.05;margin:0 0 14px;letter-spacing:-.035em;position:relative}
+  .hero p{font-size:18px;color:var(--gray-700);margin:0;position:relative}
+  .hero-actions{display:flex;gap:12px;margin-top:28px;position:relative}
+  .btn{
+    border:0;border-radius:14px;padding:13px 18px;font-weight:750;
+    display:inline-flex;align-items:center;justify-content:center;gap:9px;
+    transition:.2s; min-height:46px;
+  }
+  .btn-primary{background:var(--orange);color:#fff;box-shadow:0 8px 24px rgba(255,102,0,.20)}
+  .btn-primary:hover{background:#ed5f00;transform:translateY(-1px)}
+  .btn-secondary{background:#fff;color:var(--black);border:1px solid var(--gray-300)}
+  .btn-secondary:hover{background:var(--gray-100)}
+  .grid{display:grid;gap:18px}
+  .quick-grid{grid-template-columns:1.1fr .9fr;margin-top:-68px;position:relative;z-index:3}
+  .card{
+    background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:24px;
+  }
+  .balance-card{padding:28px}
+  .label{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--gray-500);font-weight:800}
+  .balance{font-size:clamp(24px,2.6vw,37px);font-weight:800;letter-spacing:-.03em;margin:9px 0 4px;white-space:nowrap}
+  /* Loading placeholder: a soft shimmering bar instead of the word "Loading..." */
+  .skel{display:inline-block;height:.85em;width:5.5em;border-radius:8px;vertical-align:middle;background:linear-gradient(90deg,#e6e9ee 25%,#f7f8fa 50%,#e6e9ee 75%);background-size:200% 100%;animation:shimmer 1.4s ease-in-out infinite}
+  .skel.sm{height:.75em;width:3.5em}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  @media (prefers-reduced-motion:reduce){.skel{animation:none}}
+  .pending-card .balance{font-size:clamp(22px,2.2vw,30px);margin:6px 0 2px}
+  .pending-card p{margin:0;color:var(--gray-500);font-size:13px}
+  .unit-toggle{cursor:pointer;background:none;border:0;font:inherit;font-weight:700;color:var(--gray-700);padding:0 14px;white-space:nowrap}
+  .seed-masked{-webkit-text-security:disc;text-security:disc}
+  .coin-dot{display:inline-block;width:22px;height:22px;border-radius:50%;color:#fff;font-size:12px;font-weight:800;text-align:center;line-height:22px;flex:0 0 auto}
+  .swap-arrow{display:flex;justify-content:center;margin:-8px 0 10px;position:relative;z-index:2}
+  .swap-arrow-circle{width:36px;height:36px;border-radius:50%;background:#fff;border:1px solid var(--gray-300);display:grid;place-items:center;color:var(--orange);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .swap-steps{display:flex;gap:6px;margin:18px 0 16px}
+  .swap-step{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--gray-500)}
+  .swap-step::before{content:"";display:block;height:4px;border-radius:999px;background:var(--gray-200);margin-bottom:8px}
+  .swap-step.done::before{background:var(--green)}
+  .swap-step.active::before{background:var(--orange)}
+  .swap-step.error::before{background:#d64545}
+  .swap-step.active{color:var(--black)}
+  .status-badge{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:4px 10px;border-radius:12px;background:var(--gray-100);color:var(--gray-700);white-space:nowrap}
+  .status-badge.wait{background:#fff0e6;color:var(--orange)}
+  .status-badge.ok{background:#e7f8ef;color:var(--green)}
+  .status-badge.bad{background:#fdecec;color:#c0392b}
+  .status-badge.run{background:#eaf2ff;color:#2a62c9}
+  .swap-error{display:none;background:#fdecec;color:#c0392b;padding:12px 14px;border-radius:12px;font-size:13px;margin-bottom:16px;line-height:1.5}
+  .swap-copy-row{display:flex;gap:8px;align-items:stretch}
+  .swap-copy-row input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+  .swap-copy-row .btn{padding:0 16px;min-height:0}
+  .swap-history-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--gray-200);cursor:pointer;font-size:13px}
+  .swap-history-row:last-child{border:0}
+  .swap-history-row:hover strong{color:var(--orange)}
+  #swapOrderQr{margin-top:6px}
+  .coin-btn{display:flex;align-items:center;gap:9px;border:0;border-left:1px solid var(--gray-200);background:none;padding:6px 12px 6px 12px;cursor:pointer;color:var(--black);flex:0 0 auto;font:inherit;white-space:nowrap}
+  .coin-btn:hover{background:var(--gray-100)}
+  .coin-btn svg{color:var(--gray-500)}
+  .coin-text{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15}
+  .coin-text strong{font-size:13px;font-weight:750}
+  .coin-text small{font-size:11px;color:var(--gray-500)}
+  .coin-logo,.coin-logo img,.picker-row img{width:24px;height:24px;border-radius:50%;display:block;object-fit:cover}
+  .coin-logo .coin-dot{width:24px;height:24px}
+  .swap-flip{cursor:pointer;border:1px solid var(--gray-300);transition:.15s}
+  .swap-flip:hover{border-color:var(--orange);transform:rotate(180deg)}
+  .swap-picker{display:none;position:fixed;inset:0;background:rgba(18,20,23,.45);z-index:60;padding:16px}
+  .swap-picker.open{display:grid;place-items:center}
+  .swap-picker-panel{width:min(440px,100%);max-height:min(80vh,620px);overflow:auto;padding:18px}
+  .picker-row{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px;cursor:pointer;font-size:14px}
+  .picker-row:hover{background:var(--gray-100)}
+  .picker-row img,.picker-row .coin-dot{width:30px;height:30px;flex:0 0 auto}
+  .swap-find{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;margin-top:10px}
+  @media (max-width:720px){.swap-find{grid-template-columns:1fr}.coin-text small{display:none}}
+  .faq details{padding:12px 0;border-bottom:1px solid var(--gray-200)}
+  .faq details:last-child{border-bottom:0}
+  .faq summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:"+";color:var(--orange);font-weight:800;font-size:18px}
+  .faq details[open] summary::after{content:"\2212"}
+  .faq p{margin:8px 0 0;color:var(--gray-700);font-size:14px;line-height:1.6}
+  .month-year{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .month-year select{width:100%;border:0;background:transparent;font:inherit;padding:14px 16px;outline:none;color:var(--black)}
+  .sync-banner{margin-top:18px;border:1px solid var(--gray-200)}
+  .sync-banner-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .sync-banner-head span{color:var(--gray-500);font-size:13px}
+  .sync-banner p{margin:10px 0 0;color:var(--gray-500);font-size:13px}
+  .progress{height:8px;border-radius:999px;background:var(--gray-200);overflow:hidden;margin-top:10px}
+  .progress-fill{height:100%;background:var(--orange);border-radius:999px;transition:width .4s}
+  .unit-toggle:hover{color:var(--orange)}
+  .muted{color:var(--gray-500)}
+  .action-card{min-height:152px;display:flex;flex-direction:column;justify-content:space-between}
+  .action-card svg{width:28px;height:28px}
+  .action-card h3{margin:20px 0 4px;font-size:18px}
+  .action-card p{margin:0;color:var(--gray-500);font-size:13px}
+  .section-title{display:flex;justify-content:space-between;align-items:end;margin:34px 2px 14px}
+  .section-title h3{margin:0;font-size:22px}
+  .section-title span{color:var(--gray-500);font-size:13px}
+  .activity{
+    min-height:190px;display:grid;place-items:center;text-align:center;color:var(--gray-500);
+  }
+  .empty-icon{width:52px;height:52px;border:2px solid var(--gray-300);border-radius:50%;display:grid;place-items:center;margin:0 auto 12px}
+  .empty-icon svg{width:24px;height:24px}
+  .tx-list{width:100%;display:grid;gap:10px;text-align:left}
+  .tx-item{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;
+    background:var(--gray-100);border-radius:14px;border:1px solid var(--gray-200);transition:.15s;
+    text-decoration:none;color:inherit;
+  }
+  .tx-item:hover{background:#fff;border-color:var(--gray-300);box-shadow:0 4px 14px rgba(0,0,0,.04)}
+  .tx-item.tx-clickable{cursor:pointer}
+  .tx-item.tx-clickable:hover .tx-link-icon{color:var(--orange);transform:translate(2px, -2px)}
+  .tx-link-icon{
+    font-size:12px;font-weight:700;color:var(--gray-500);display:inline-block;transition:transform .15s, color .15s;margin-left:4px;
+  }
+  .tx-left{display:flex;align-items:center;gap:12px;min-width:0}
+  .tx-badge{
+    width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:12px;flex:0 0 auto;
+  }
+  .tx-badge.in{background:#e7f8ef;color:var(--green)}
+  .tx-badge.out{background:#fff0e6;color:var(--orange)}
+  .tx-badge.pool{background:#f0f2f5;color:var(--gray-700)}
+  .tx-meta{min-width:0}
+  .tx-title{font-weight:700;font-size:14px;color:var(--black);margin-bottom:2px}
+  .tx-sub{font-size:12px;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tx-pid{font-size:11px;color:var(--gray-500);margin-top:1px}
+  .tx-right{text-align:right;flex:0 0 auto}
+  .tx-amount{font-size:15px;font-weight:800;letter-spacing:-.01em}
+  .tx-amount.in{color:var(--green)}
+  .tx-amount.out{color:var(--black)}
+  .tx-conf{font-size:11px;font-weight:600;color:var(--gray-500);margin-top:2px}
+  .page-head{padding:34px 4px 20px}
+  .page-head h2{font-size:36px;margin:0 0 8px;letter-spacing:-.03em}
+  .page-head p{margin:0;color:var(--gray-700)}
+  .panel-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
+  .form-card{padding:28px}
+  .field{margin-bottom:20px}
+  .field label{display:block;font-weight:750;font-size:13px;margin-bottom:8px}
+  .input-wrap{display:flex;align-items:center;border:1px solid var(--gray-300);border-radius:14px;background:#fff;transition:.2s}
+  .input-wrap:focus-within{border-color:#ff9d5c;box-shadow:0 0 0 4px rgba(255,102,0,.08)}
+  .input-wrap input,.input-wrap select,.input-wrap textarea{
+    width:100%;border:0;outline:0;background:transparent;padding:13px 14px;color:var(--black)
+  }
+  textarea{min-height:92px;resize:vertical}
+  .help{font-size:12px;color:var(--gray-500);margin-top:6px;line-height:1.5;display:flex;justify-content:space-between;align-items:center}
+  .btn-max{color:var(--orange);font-weight:700;border:0;background:none;padding:0;cursor:pointer}
+  .btn-max:hover{text-decoration:underline}
+  .segmented{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .segmented button{
+    padding:11px 10px;border:1px solid var(--gray-300);background:#fff;border-radius:12px;font-weight:700;font-size:12px;color:var(--gray-700)
+  }
+  .segmented button.active{border-color:var(--orange);background:#fff4ed;color:var(--orange)}
+  .summary-row{display:flex;justify-content:space-between;gap:20px;padding:11px 0;border-bottom:1px solid var(--gray-200);font-size:13px}
+  .summary-row:last-child{border:0}
+  .summary-row span:first-child{color:var(--gray-500)}
+  .summary-row strong{font-weight:750}
+  .note{
+    padding:15px 16px;border-radius:14px;background:var(--gray-100);color:var(--gray-700);font-size:13px;line-height:1.55;
+  }
+  .orange-note{background:#fff4ed;color:#8f3d05}
+  .qr{
+    width:210px;height:210px;margin:8px auto 18px;border:10px solid #fff;border-radius:18px;
+    box-shadow:0 0 0 1px var(--gray-200);display:grid;place-items:center;background:#fff;overflow:hidden;
+  }
+  .qr img,.qr canvas{width:100% !important;height:100% !important;display:block}
+  .address-box{display:flex;gap:8px}
+  .address-box input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .step-num{
+    width:34px;height:34px;border-radius:10px;background:#fff0e7;color:var(--orange);font-weight:850;display:grid;place-items:center;margin-bottom:16px
+  }
+  .step h3{margin:0 0 8px;font-size:17px}.step p{margin:0;color:var(--gray-700);font-size:13px;line-height:1.6}
+  .import-options{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+  .choice{
+    border:1px solid var(--gray-300);background:#fff;border-radius:14px;padding:15px;text-align:left;transition:.2s
+  }
+  .choice.active{border-color:var(--orange);background:#fff7f2}
+  .choice strong{display:block;margin-bottom:4px}.choice span{font-size:12px;color:var(--gray-500)}
+  .footer{
+    border-top:1px solid var(--gray-200);margin-top:55px;padding:26px 2px 0;
+    display:flex;justify-content:space-between;gap:18px;align-items:center;color:var(--gray-500);font-size:13px
+  }
+  .footer-links{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .social{width:36px;height:36px;border:1px solid var(--gray-200);border-radius:11px;display:grid;place-items:center;background:#fff}
+  .social svg{width:18px;height:18px}
+  .toast{
+    position:fixed;right:24px;bottom:24px;background:#17191d;color:#fff;padding:13px 18px;border-radius:13px;
+    opacity:0;pointer-events:none;transform:translateY(10px);transition:.25s;z-index:50;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.18);
+  }
+  .toast.show{opacity:1;transform:none}
+  .mobile-head{display:none}
+  @media(max-width:980px){
+    .app{display:block}
+    .sidebar{transform:translateX(-100%);transition:.25s;box-shadow:20px 0 40px rgba(0,0,0,.08)}
+    .sidebar.open{transform:none}
+    main{padding:16px 20px 40px}
+    .mobile-head{display:flex;justify-content:space-between;align-items:center;padding:4px 0 10px}
+    .mobile-head .brand{margin:0}
+    .mobile-head .logo{width:38px;height:38px}
+    .mobile-head .logo::before{top:12px}
+    .topbar{height:44px}
+    .quick-grid,.panel-grid,.steps{grid-template-columns:1fr}
+    .quick-grid{margin-top:-38px}
+    .hero{padding:40px 22px 72px}
+    .hero h2{font-size:38px}
+    .hero-watermark{right:-190px;opacity:.7}
+    .footer{flex-direction:column;align-items:flex-start}
+  }
+  @media(max-width:620px){
+    main{padding:12px 14px 30px}
+    .topbar .status{font-size:11px}
+    .hero h2{font-size:32px}
+    .hero p{font-size:16px}
+    .hero-actions{flex-direction:column;align-items:stretch}
+    .balance{font-size:30px}
+    .form-card,.card{padding:20px}
+    .segmented{grid-template-columns:1fr 1fr}
+    .import-options{grid-template-columns:1fr}
+    .welcome-grid{grid-template-columns:1fr !important;margin-top:-20px !important}
+  }
+
+  /* Visibility rules based on auth state */
+  body.not-signed-in .signed-in-only{display:none !important}
+  body.not-signed-in .signed-out-only{display:flex !important}
+
+  body.signed-in .signed-out-only{display:none !important}
+  body.signed-in .signed-in-only{display:flex !important}
+
+  .welcome-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));
+    gap:24px;
+    margin-top:-38px;
+    position:relative;
+    z-index:3;
+  }
+  .welcome-card{
+    background:#fff;
+    border:1px solid var(--gray-200);
+    border-radius:var(--radius);
+    padding:32px;
+    box-shadow:var(--shadow);
+    transition:transform .2s, border-color .2s, box-shadow .2s;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+  .welcome-card:hover{
+    border-color:var(--orange);
+    transform:translateY(-2px);
+    box-shadow:0 18px 45px rgba(255,102,0,.10);
+  }
+  .seed-pill{
+    background:#fff;
+    border:1px solid var(--gray-300);
+    border-radius:10px;
+    padding:8px 10px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12.5px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    user-select:all;
+    transition:border-color .15s;
+  }
+  .seed-pill:hover{border-color:var(--orange)}
+  .seed-pill .num{
+    color:var(--gray-500);
+    font-size:10px;
+    font-weight:750;
+    user-select:none;
+    min-width:16px;
+  }
+  .seed-pill .word{
+    font-weight:700;
+    color:var(--black);
+  }
+</style>
+
+
+</head>
+<body class="not-signed-in">
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand" data-page="home">
+      <img class="brand-logo" src="/img/xmrnest-monero-wallet.png?v=1" alt="XmrNest - Monero Web Wallet">
+    </div>
+
+    <nav class="nav" aria-label="Wallet navigation">
+      <!-- Signed In Only Navigation Items -->
+      <button class="signed-in-only" data-page="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/></svg>
+        Home
+      </button>
+      <button class="signed-in-only" data-page="send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m21 3-8.5 18-2.6-7-7-2.6L21 3Z"/><path d="m9.9 14.1 4.2-4.2"/></svg>
+        Send
+      </button>
+      <button class="signed-in-only" data-page="receive">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>
+        Receive
+      </button>
+
+      <!-- Signed Out Only Navigation Items -->
+      <button class="signed-out-only active" data-page="welcome">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        Get Started
+      </button>
+      <button class="signed-out-only" data-page="create">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        Create wallet
+      </button>
+
+      <!-- Common Navigation Items -->
+      <button data-page="import">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 7h12a3 3 0 0 1 3 3v9H5a3 3 0 0 1-3-3V7h3Z"/><path d="M5 7V5a2 2 0 0 1 2-2h9"/><path d="M16 13h4"/></svg>
+        <span id="navImportText">Restore wallet</span>
+      </button>
+      <button data-page="how">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.4 1-1.4 2.1"/><path d="M12 17h.01"/></svg>
+        How to Use
+      </button>
+      <button data-page="swap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+        <span>Swap</span>
+      </button>
+    </nav>
+
+    <div class="side-bottom">
+      <strong>Private • Simple • Yours</strong><br>
+      Non-custodial Monero web wallet.
+    </div>
+  </aside>
+
+  <main>
+    <div class="mobile-head">
+      <div class="brand" data-page="home">
+        <img class="brand-logo brand-logo-small" src="/img/xmrnest-monero-wallet.png?v=1" alt="XmrNest - Monero Web Wallet">
+      </div>
+      <button class="icon-btn" id="menuBtn" aria-label="Open menu">☰</button>
+    </div>
+
+    <div class="topbar">
+      <div class="status"><span class="dot"></span> <span id="topbarStatus">Connected to Monero network</span></div>
+      <div class="topbar-right">
+        <div class="account-switcher-wrap" id="accountSwitcherWrap">
+          <button class="wallet-chip" id="walletChipBtn" type="button" title="Switch or manage connected wallets">
+            <span class="active-dot"></span>
+            <span id="chipAddress">...</span>
+            <svg class="chevron-down" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="account-dropdown" id="accountDropdown">
+            <div class="account-dropdown-header">
+              <div class="account-dropdown-title">
+                <span>Connected Wallets</span>
+                <span class="account-badge" id="accountCount">0</span>
+              </div>
+              <button class="account-btn-add" id="btnConnectNew" type="button" title="Connect another wallet">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Add Wallet</span>
+              </button>
+            </div>
+            <div class="account-dropdown-list" id="accountList"></div>
+            <div class="account-dropdown-footer">
+              <button class="account-btn-disconnect-all" id="btnDisconnectAll" type="button">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                Disconnect All Wallets
+              </button>
+            </div>
+          </div>
+        </div>
+        <button class="btn-logout" id="btnLogout" title="Disconnect this wallet">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          Quit
+        </button>
+      </div>
+    </div>
+
+    <!-- PAGE: WELCOME (Signed-out onboarding screen) -->
+    <section class="page active" id="welcome">
+      <div class="hero">
+        <div class="hero-watermark" aria-hidden="true"></div>
+        <h2>A Monero wallet that runs in your browser</h2>
+        <p>Send and receive XMR without installing anything. No account or email needed. Keys are generated and used locally in your browser.</p>
+      </div>
+
+      <div class="grid welcome-grid">
+        <!-- Option 1: Generate New Seed -->
+        <div class="card welcome-card">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+              <div style="width:48px; height:48px; border-radius:14px; background:#fff0e6; color:var(--orange); display:grid; place-items:center;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <span style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--orange); background:#fff4ed; padding:4px 10px; border-radius:20px;">New Account</span>
+            </div>
+            <h3 style="font-size:22px; margin:0 0 10px; font-weight:800;">Create a Monero wallet</h3>
+            <p style="color:var(--gray-700); font-size:14px; line-height:1.6; margin:0 0 24px;">
+              A new 25-word seed is generated in your browser.
+            </p>
+          </div>
+          <button class="btn btn-primary" data-page="create" style="width:100%; justify-content:center;">
+            Create wallet &rarr;
+          </button>
+        </div>
+
+        <!-- Option 2: Import Existing Wallet -->
+        <div class="card welcome-card">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+              <div style="width:48px; height:48px; border-radius:14px; background:#f0f2f5; color:var(--black); display:grid; place-items:center;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 7h12a3 3 0 0 1 3 3v9H5a3 3 0 0 1-3-3V7h3Z"/><path d="M5 7V5a2 2 0 0 1 2-2h9"/><path d="M16 13h4"/></svg>
+              </div>
+              <span style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--gray-700); background:var(--gray-100); padding:4px 10px; border-radius:20px;">Restore Account</span>
+            </div>
+            <h3 style="font-size:22px; margin:0 0 10px; font-weight:800;">Import Wallet</h3>
+            <p style="color:var(--gray-700); font-size:14px; line-height:1.6; margin:0 0 24px;">
+              Already have a Monero wallet? Restore access safely using your 25 or 13-word recovery seed phrase or private keys.
+            </p>
+          </div>
+          <button class="btn btn-secondary" data-page="import" style="width:100%; justify-content:center;">
+            Import Wallet &rarr;
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:28px; padding:24px 28px; background:var(--gray-100); border:1px solid var(--gray-200); border-radius:var(--radius);">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:20px;">
+          <div>
+            <strong style="display:block; font-size:13px; color:var(--black); margin-bottom:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px;color:var(--orange)"><circle cx="8" cy="15" r="4"/><path d="M10.9 12.1 20 3"/><path d="M15 8l3 3"/><path d="M17 6l3 3"/></svg>You hold the keys</strong>
+            <span style="font-size:12px; color:var(--gray-700);">Non-custodial. Your spend and view keys are created in your browser.</span>
+          </div>
+          <div>
+            <strong style="display:block; font-size:13px; color:var(--black); margin-bottom:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px;color:var(--orange)"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A10.4 10.4 0 0 1 12 5c5 0 9 4 10 7a11.6 11.6 0 0 1-3.2 4.2"/><path d="M6.6 6.6A11.8 11.8 0 0 0 2 12c1 3 5 7 10 7a10 10 0 0 0 4.3-1"/></svg>No trackers</strong>
+            <span style="font-size:12px; color:var(--gray-700);">No cookies, no analytics, no third-party scripts.</span>
+          </div>
+          <div>
+            <strong style="display:block; font-size:13px; color:var(--black); margin-bottom:4px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;vertical-align:-3px;margin-right:6px;color:var(--orange)"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="m9 12 2 2 4-4"/></svg>Private by default</strong>
+            <span style="font-size:12px; color:var(--gray-700);">Every Monero transaction hides the sender, the receiver and the amount.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE: HOME -->
+    <section class="page" id="home">
+      <div class="hero">
+        <div class="hero-watermark" aria-hidden="true"></div>
+        <h2>XmrNest Wallet</h2>
+        <p>Send and receive XMR privately, right from your browser.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" data-page="send">Send XMR</button>
+          <button class="btn btn-secondary" data-page="receive">Receive XMR</button>
+        </div>
+      </div>
+
+      <div class="grid quick-grid">
+        <div class="card balance-card">
+          <div class="label" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Total balance</span>
+          </div>
+          <div class="balance" id="homeBalance">0 XMR</div>
+          <div class="muted" id="homeBalanceUsd">≈ $0.00 USD</div>
+            <div class="help" id="balanceNote" style="margin-top:6px"></div>
+        </div>
+        <div class="card action-card pending-card" style="border:1px solid var(--gray-200)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <div>
+            <h3>Pending</h3>
+            <div class="balance" id="homePending">0 XMR</div>
+            <p id="homePendingSub">No pending funds</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card sync-banner" id="syncBanner" style="display:none">
+        <div class="sync-banner-head"><strong id="syncBannerTitle">Scanning blocks: 0%</strong><span id="syncBannerDetail"></span></div>
+        <div class="progress"><div class="progress-fill" id="syncBarFill" style="width:0%"></div></div>
+        <p>You can leave this page open or come back later. Your balance and history appear automatically when the scan completes.</p>
+      </div>
+
+      <div class="section-title"><h3>History</h3><span>Latest wallet transactions</span></div>
+      <div class="card activity">
+        <div id="activityEmpty">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          </div>
+          <strong style="color:var(--black)">No transactions yet</strong>
+          <div style="margin-top:6px">Your recent activity will appear here.</div>
+        </div>
+        <div class="tx-list" id="txList" style="display:none"></div>
+      </div>
+    </section>
+
+    <!-- PAGE: SEND -->
+    <section class="page" id="send">
+      <div class="page-head"><h2>Send XMR</h2><p>Send Monero to any wallet in seconds.</p></div>
+      <div class="panel-grid">
+        <div class="card form-card">
+          <div class="field">
+            <label for="sendAddress">Recipient address</label>
+            <div class="input-wrap"><input id="sendAddress" placeholder="Enter Monero address (starts with 4 or 8)" autocomplete="off"></div>
+          </div>
+          <div class="field">
+            <label for="amount">Amount</label>
+            <div class="input-wrap"><input id="amount" type="number" min="0" step="0.00000001" placeholder="0"><button type="button" class="unit-toggle" id="amountUnitToggle" title="Switch between XMR and USD"><span id="amountUnit">XMR</span> &#8645;</button></div>
+            <div class="help" style="justify-content:flex-start"><span id="amountConverted"></span></div>
+            <div class="help">
+              <span><span id="sendAvailable">Available: 0 XMR</span><br><span id="sendLocked"></span></span>
+              <button type="button" class="btn-max" id="btnMaxAmount">MAX</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Priority fee</label>
+            <div class="segmented" id="priority">
+              <button type="button" data-priority="1">Low</button>
+              <button type="button" class="active" data-priority="2">Normal</button>
+              <button type="button" data-priority="3">High</button>
+              <button type="button" data-priority="4">Urgent</button>
+            </div>
+            <div class="help">Higher priority generally pays a higher miner fee and may confirm sooner depending on network conditions.</div>
+          </div>
+          <div class="field">
+            <label for="paymentId">Note <span class="muted">(optional, local only)</span></label>
+            <div class="input-wrap"><input id="paymentId" placeholder="Add a personal note"></div>
+          </div>
+          <div class="note orange-note" style="margin-bottom:18px">
+            Always verify the recipient address and amount before sending. Monero transactions are irreversible once broadcast.
+          </div>
+          <button class="btn btn-primary" style="width:100%" id="reviewSend">Send transaction</button>
+        </div>
+
+        <aside class="card">
+          <div class="label">Transaction summary</div>
+          <div class="summary-row"><span>Amount</span><strong id="sumAmount">0 XMR</strong></div>
+          <div class="summary-row"><span>Priority</span><strong id="sumPriority">Normal</strong></div>
+          <div class="summary-row"><span>Estimated fee</span><strong id="sumFee">0.00002000 XMR</strong></div>
+          <div class="summary-row"><span>Total</span><strong id="sumTotal">0.00002000 XMR</strong></div>
+          <div class="note" style="margin-top:18px" id="signerStatus">Signer loading in the background...</div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PAGE: RECEIVE -->
+    <section class="page" id="receive">
+      <div class="page-head"><h2>Receive XMR</h2><p>Share an address for payments, or create a fresh subaddress for better payment organization.</p></div>
+      <div class="panel-grid">
+        <div class="card form-card" style="text-align:center">
+          <div class="qr" id="qrCodeContainer" aria-label="Monero address QR code"></div>
+          <div class="label" style="margin-bottom:8px">Current address</div>
+          <div class="address-box">
+            <div class="input-wrap" style="flex:1"><input id="receiveAddress" readonly value="Import wallet to view address"></div>
+            <button class="btn btn-secondary" id="copyAddress">Copy</button>
+          </div>
+          <button class="btn btn-primary" id="newSubaddress" style="margin-top:16px">+ New subaddress</button>
+        </div>
+
+        <aside class="card">
+          <div class="label">Receiving tips</div>
+          <div class="summary-row"><span>Address type</span><strong id="addressType">Primary</strong></div>
+          <div class="summary-row"><span>Label</span><strong id="addressLabel">Main wallet</strong></div>
+          <div class="note" style="margin-top:18px">
+            Use a new subaddress for separate contacts, invoices, or services. It helps organize incoming payments without creating a new wallet.
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PAGE: IMPORT WALLET -->
+    <section class="page" id="import">
+      <div class="page-head"><h2>Import/Restore a Monero wallet</h2><p>Choose how you want to restore.</p></div>
+      <div class="panel-grid">
+        <div class="card form-card">
+          <div class="import-options">
+            <button class="choice active" data-import="seed"><strong>Recovery seed</strong><span>Use your 25-word seed.</span></button>
+            <button class="choice" data-import="keys"><strong>Private keys</strong><span>Restore with wallet keys and address.</span></button>
+          </div>
+
+          <div id="seedImport">
+            <div class="field">
+              <label for="seedWords">Recovery seed</label>
+              <div class="input-wrap"><textarea id="seedWords" class="seed-masked" placeholder="Type or paste your seed words, with a space between each word" autocomplete="off" spellcheck="false"></textarea></div>
+            <div class="help" style="justify-content:flex-end;gap:16px">
+              <button type="button" class="btn-max" id="seedToggle" aria-pressed="false">&#128065; Show</button>
+              <button type="button" class="btn-max" id="seedPaste">Paste</button>
+            </div>
+            <div class="help" id="seedHint"></div>
+              <div class="help"><span>Your seed is processed in this browser and is not sent to our servers.</span></div>
+              <div class="help">Never send your seed to support, Telegram, X, email, or any third party.</div>
+            </div>
+          </div>
+
+          <div id="keysImport" hidden>
+            <div class="field"><label for="keyAddress">Primary address</label><div class="input-wrap"><input id="keyAddress" placeholder="4... or 8..."></div></div>
+            <div class="field"><label for="keyView">Private view key</label><div class="input-wrap"><input id="keyView" type="password" placeholder="64-character private view key"></div></div>
+            <div class="field"><label for="keySpend">Private spend key <span class="muted">(optional)</span></label><div class="input-wrap"><input id="keySpend" type="password" placeholder="64-character private spend key"></div></div>
+          </div>
+
+          <div class="field" style="margin-top:12px">
+            <label>When did you create this wallet?</label>
+            <div class="month-year" style="margin-top:6px">
+              <div class="input-wrap"><select id="restoreMonth" aria-label="Creation month"><option value="">Month</option></select></div>
+              <div class="input-wrap"><select id="restoreYear" aria-label="Creation year"><option value="">Year</option></select></div>
+            </div>
+            <div class="help" style="margin-top:6px"><span>This doesn't need to be exact. If you're not sure, pick an earlier month.</span></div>
+            <div class="help" id="restoreDateHint"></div>
+            <label for="restoreHeight" style="margin-top:12px">Block height <span class="muted">(optional)</span></label>
+            <div class="input-wrap"><input id="restoreHeight" type="number" min="0" placeholder="0 (or e.g. 3000000)"></div>
+            <div class="help" style="margin-top:8px"><span>Or paste the <strong>oldest</strong> transaction ID you know for this wallet (e.g. the first deposit) and the height is taken from the chain. A newer one would make funds received before it invisible.</span></div>
+            <div class="input-wrap" style="margin-top:6px"><input id="restoreTxid" placeholder="64-character transaction ID (optional)" autocomplete="off" aria-label="Known transaction ID"></div>
+            <div class="help" id="restoreTxidHint"></div>
+            <div class="help" style="margin-top:4px">
+              Tip: Leave 0 to scan entire history, or enter approximate block height (e.g. 2024: 3050000, 2025: 3310000, 2026: 3580000) for faster sync.
+            </div>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%;margin-top:18px" id="restoreBtn">Restore wallet</button>
+        </div>
+
+        <aside class="card">
+          <div class="label">Tips</div>
+          <div class="note" style="margin-top:12px">Check that the address bar says <strong>xmrnest.org</strong> before you type your seed. Fake sites copy wallet pages to steal seeds.</div>
+          <div class="note" style="margin-top:12px">Need a new wallet? <a href="#create" data-page="create" style="color:var(--orange);font-weight:700;text-decoration:underline;">Create one here</a>.</div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PAGE: CREATE (Generate New Seed) -->
+    <section class="page" id="create">
+      <div class="page-head">
+        <h2>Create a Monero wallet</h2>
+        <p>This is your seed. Write the 25 words down on paper, in order.</p>
+      </div>
+
+      <div class="panel-grid">
+        <div class="card form-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label for="createSeedLang" style="font-weight:750; font-size:13px; color:var(--gray-700);">Language:</label>
+              <div class="input-wrap" style="padding:0 8px;">
+                <select id="createSeedLang" style="padding:8px 6px; font-size:13px; font-weight:600; border:0; background:transparent;">
+                  <option value="english" selected>English</option>
+                  <option value="spanish">Spanish (Español)</option>
+                  <option value="german">German (Deutsch)</option>
+                  <option value="french">French (Français)</option>
+                  <option value="italian">Italian (Italiano)</option>
+                  <option value="dutch">Dutch (Nederlands)</option>
+                  <option value="portuguese">Portuguese (Português)</option>
+                  <option value="russian">Russian (русский язык)</option>
+                  <option value="japanese">Japanese (日本語)</option>
+                  <option value="chinese_simplified">Chinese Simplified (简体中文)</option>
+                  <option value="esperanto">Esperanto</option>
+                  <option value="lojban">Lojban</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary" id="btnRegenerateSeed" style="padding:8px 14px; font-size:12px; min-height:36px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                New seed
+              </button>
+              <button type="button" class="btn btn-secondary" id="btnCopyGeneratedSeed" style="padding:8px 14px; font-size:12px; min-height:36px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                Copy Words
+              </button>
+            </div>
+          </div>
+
+          <!-- 25 Word Display -->
+          <div id="seedWordsContainer" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(115px, 1fr)); gap:8px; margin-bottom:20px; padding:16px; background:var(--gray-100); border:1px solid var(--gray-300); border-radius:14px;">
+            <!-- Filled dynamically with 25 seed pills -->
+          </div>
+
+          <div class="note orange-note" style="margin-bottom:18px;">
+            <strong>Keep these words safe</strong>
+            <div style="margin-top:6px; line-height:1.5;">
+              Anyone with these words can spend your XMR. If you lose them, nobody can get your funds back, not even us.
+            </div>
+          </div>
+
+          <div class="field" style="margin-bottom:20px;">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:600; font-size:13px; color:var(--black);">
+              <input type="checkbox" id="chkSeedSaved" style="width:18px; height:18px; accent-color:var(--orange); cursor:pointer;">
+              <span>I wrote down all 25 words.</span>
+            </label>
+          </div>
+
+          <button class="btn btn-primary" id="btnCreateAccount" style="width:100%;">
+            Open wallet
+          </button>
+        </div>
+
+        <aside class="card">
+          <div class="label">Tips</div>
+          <div class="note" style="margin-top:12px;">
+            Keep it on paper or metal. Don’t take a screenshot or save it on your phone or computer.
+          </div>
+          <div class="note" style="margin-top:12px;">
+            This seed also works in other Monero wallets like Monero GUI, Cake Wallet and Feather.
+          </div>
+          <div class="note" style="margin-top:12px;">
+            <strong>Already have a wallet?</strong><br>
+            <a href="#import" data-page="import" style="color:var(--orange); font-weight:700; text-decoration:underline;">Restore it here</a>.
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PAGE: HOW TO USE -->
+    <section class="page" id="how">
+      <div class="page-head"><h2>How to use XmrNest</h2><p>Three steps to start using your Monero wallet.</p></div>
+      <div class="steps">
+        <div class="card step"><div class="step-num">1</div><h3>Create or restore a wallet</h3><p>Create a new wallet and write down your 25-word seed, or restore one you already have. Your keys stay in your browser.</p></div>
+        <div class="card step"><div class="step-num">2</div><h3>Receive XMR</h3><p>Go to Receive and copy your address. You can make a new address for each person who pays you. They all go to the same wallet.</p></div>
+        <div class="card step"><div class="step-num">3</div><h3>Send XMR</h3><p>Go to Send, paste the address and enter the amount. Check the address again, then confirm.</p></div>
+      </div>
+
+      <div class="section-title"><h3>Stay safe</h3></div>
+      <div class="card">
+        <div class="summary-row"><span>Recovery seed</span><strong>Keep it on paper. Never share it.</strong></div>
+        <div class="summary-row"><span>Recipient address</span><strong>Check the first and last characters before you send</strong></div>
+        <div class="summary-row"><span>Support</span><strong>We will never ask for your seed or keys</strong></div>
+        <div class="summary-row"><span>Device</span><strong>Use your own device with an updated browser</strong></div>
+        <div class="summary-row"><span>Website</span><strong>Always check the address bar says XmrNest.org</strong></div>
+      </div>
+    </section>
+
+    <!-- PAGE: SWAP (crypto <-> XMR through the configured swap gateway) -->
+    <section class="page" id="swap">
+      <div class="page-head">
+        <h2>Swap crypto to and from Monero (XMR)</h2>
+        <p>Swap BTC, ETH, USDT, USDC, DAI, BNB, SOL, ZEC or TRX to XMR, or XMR to any of them. No sign-up, no account.</p>
+      </div>
+
+      <div class="panel-grid">
+        <div>
+          <div class="card form-card" id="swapFormCard">
+            <div class="note" id="swapUnavailable" style="display:none; margin-bottom:18px;">Swaps are temporarily unavailable. Please try again later.</div>
+
+            <div class="field">
+              <label for="swapPayAmount">You send</label>
+              <div class="input-wrap">
+                <input id="swapPayAmount" type="text" inputmode="decimal" placeholder="0" autocomplete="off">
+                <button type="button" class="coin-btn" id="swapFromBtn" aria-label="Choose the coin to send">
+                  <span class="coin-logo" id="swapFromLogo"></span>
+                  <span class="coin-text"><strong id="swapFromSym">BTC</strong><small id="swapFromNet">Bitcoin</small></span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+              </div>
+              <div class="help"><span id="swapPayUsd"></span><span id="swapPayMin" class="muted"></span></div>
+            </div>
+
+            <div class="swap-arrow">
+              <button type="button" class="swap-arrow-circle swap-flip" id="swapFlip" title="Swap direction" aria-label="Swap direction">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16"/><path d="m3 16 4 4 4-4"/><path d="M17 20V4"/><path d="m13 8 4-4 4 4"/></svg>
+              </button>
+            </div>
+
+            <div class="field">
+              <label for="swapGetAmount">You get (estimate)</label>
+              <div class="input-wrap">
+                <input id="swapGetAmount" type="text" placeholder="0" readonly>
+                <button type="button" class="coin-btn" id="swapToBtn" aria-label="Choose the coin to receive">
+                  <span class="coin-logo" id="swapToLogo"></span>
+                  <span class="coin-text"><strong id="swapToSym">XMR</strong><small id="swapToNet">Monero</small></span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+              </div>
+              <div class="help"><span id="swapGetRate">Enter an amount to see a live quote.</span><span id="swapGetUsd" class="muted"></span></div>
+            </div>
+
+            <div class="field">
+              <label for="swapRecipientAddress" id="swapRecipientLabel">Your Monero address</label>
+              <div class="input-wrap">
+                <input id="swapRecipientAddress" placeholder="Enter or paste your Monero address (starts with 4 or 8)" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="help">
+                <span id="swapRecipientHelp">Your XMR will be sent to this address.</span>
+                <button type="button" class="btn-max" id="swapUseMyAddress">Use my wallet address</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="swapRefundAddress" id="swapRefundLabel">Refund address <span class="muted" style="font-weight:600">(optional, recommended)</span></label>
+              <div class="input-wrap">
+                <input id="swapRefundAddress" placeholder="Your own address for the coin you send" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="help">
+                <span id="swapRefundHelp">If the swap can't be completed, your coins are returned to this address.</span>
+                <button type="button" class="btn-max" id="swapRefundUseMine" style="display:none;">Use my wallet address</button>
+              </div>
+            </div>
+
+            <div class="swap-error" id="swapError" role="alert"></div>
+
+            <div class="note" style="margin-bottom:18px;">
+              Swaps are run by <strong class="swapProviderName">a third-party swap service</strong>. XmrNest never holds your coins.
+              The amount you get is an estimate and includes the service fee.<span id="swapTermsNote" hidden> By starting a swap you agree to its
+              <a id="swapTermsLink" href="#" target="_blank" rel="noopener" style="color:var(--orange)">terms and compliance policy</a>.</span>
+            </div>
+
+            <button class="btn btn-primary" id="swapSubmit" style="width:100%;" type="button" disabled>Enter an amount</button>
+          </div>
+
+          <div class="card form-card" id="swapOrderCard" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+              <h3 id="swapOrderTitle" style="margin:0; font-size:20px;">Send your coins</h3>
+              <span class="status-badge wait" id="swapOrderBadge">Waiting for deposit</span>
+            </div>
+
+            <div class="swap-steps" id="swapOrderSteps" aria-label="Swap progress">
+              <div class="swap-step" data-step="0">Deposit</div>
+              <div class="swap-step" data-step="1">Confirming</div>
+              <div class="swap-step" data-step="2">Swapping</div>
+              <div class="swap-step" data-step="3">Sending</div>
+              <div class="swap-step" data-step="4">Done</div>
+            </div>
+
+            <div id="swapDepositBlock">
+              <div class="qr" id="swapOrderQr"></div>
+              <div class="field">
+                <label for="swapDepositAmount">Send exactly this amount</label>
+                <div class="swap-copy-row">
+                  <div class="input-wrap" style="flex:1;"><input id="swapDepositAmount" type="text" readonly></div>
+                  <button type="button" class="btn btn-secondary" data-copy="swapDepositAmount">Copy</button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="swapDepositAddress">To this deposit address</label>
+                <div class="swap-copy-row">
+                  <div class="input-wrap" style="flex:1;"><input id="swapDepositAddress" type="text" readonly></div>
+                  <button type="button" class="btn btn-secondary" data-copy="swapDepositAddress">Copy</button>
+                </div>
+                <div id="swapDepositForms"></div>
+                <div class="help"><span id="swapDepositNetwork"></span><strong id="swapOrderCountdown"></strong></div>
+              </div>
+              <div id="swapSendFromWalletBlock" style="display:none; margin-bottom:18px;">
+                <button type="button" class="btn btn-primary" id="swapSendFromWallet" style="width:100%;">Send from this wallet</button>
+              </div>
+            </div>
+
+            <div class="note" id="swapOrderNotice" style="margin-bottom:18px;"></div>
+
+            <div id="swapActionBlock" style="display:none; margin-bottom:18px;">
+              <div class="field">
+                <label for="swapActionAddress" id="swapActionLabel">Address</label>
+                <div class="swap-copy-row">
+                  <div class="input-wrap" style="flex:1;"><input id="swapActionAddress" type="text" autocomplete="off" spellcheck="false"></div>
+                  <button type="button" class="btn btn-primary" id="swapActionSubmit">Save</button>
+                </div>
+              </div>
+            </div>
+            <div id="swapCloseWaitBlock" style="display:none; margin-bottom:18px;">
+              <button type="button" class="btn btn-secondary" id="swapCloseWait" style="width:100%;">Continue with what arrived</button>
+            </div>
+
+            <div id="swapOrderDetails"></div>
+
+            <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary" id="swapOrderRefresh">Refresh</button>
+              <button type="button" class="btn btn-secondary" id="swapNewSwap">New swap</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="card">
+          <div class="label">Swap details</div>
+          <div class="summary-row"><span>Sign-up</span><strong>Not needed</strong></div>
+          <div class="summary-row"><span>Direction</span><strong>To XMR and from XMR</strong></div>
+          <div class="summary-row"><span>Coins</span><strong id="swapDetailCoins">BTC, ETH, USDT, USDC, DAI, BNB, SOL, ZEC, TRX</strong></div>
+          <div class="summary-row"><span>Service fee</span><strong id="swapDetailFee">Shown in the quote</strong></div>
+          <div class="summary-row"><span>Time</span><strong>Usually 10 to 20 minutes</strong></div>
+          <div class="summary-row"><span>Service</span><strong class="swapProviderName">Swap service</strong></div>
+        </aside>
+      </div>
+
+      <div class="section-title"><h3>Your swaps</h3><span>Saved in this browser, and with your wallet when one is open</span></div>
+      <div class="card">
+        <div id="swapHistoryList"><div class="muted" style="font-size:13px;">No swaps yet.</div></div>
+        <details style="margin-top:14px;">
+          <summary style="cursor:pointer; font-weight:700; font-size:13px;">Find a swap by order id</summary>
+          <div class="swap-find">
+            <div class="input-wrap"><input id="swapFindId" placeholder="Order id" autocomplete="off" spellcheck="false"></div>
+            <div class="input-wrap"><input id="swapFindAddress" placeholder="Receiving address of that swap" autocomplete="off" spellcheck="false"></div>
+            <button type="button" class="btn btn-secondary" id="swapFindBtn">Find</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="section-title"><h3>FAQ</h3></div>
+      <div class="card faq">
+        <details><summary>How do I swap BTC to Monero?</summary><p>Pick the coin you want to send, enter the amount and your Monero address, then press Start swap. Send exactly the amount shown to the deposit address before the deadline. Your XMR arrives in your wallet as a normal transaction.</p></details>
+        <details><summary>Can I swap Monero to another coin?</summary><p>Yes. Press the arrow to flip the direction, enter the XMR amount and the address where you want to receive the other coin. If a wallet is open here, one click fills in the Send page with the deposit address and amount.</p></details>
+        <details><summary>Do I need an account?</summary><p>No. There's no sign-up and no email. Your swaps are remembered in this browser, and also with your wallet when one is open, so you can follow them later.</p></details>
+        <details><summary>How long does a swap take?</summary><p>Usually 10 to 20 minutes after your deposit confirms. It depends on how fast the network you send from confirms your payment.</p></details>
+        <details><summary>Which coins and networks?</summary><p>XMR, BTC, ETH (Ethereum, Arbitrum, Base), USDT and USDC (Ethereum, Arbitrum, Base, BNB Chain, Solana, Tron), DAI (Ethereum), BNB, SOL, ZEC and TRX. Always pick the network you are actually sending on.</p></details>
+        <details><summary>What if I send a different amount?</summary><p>If you send more, the whole amount is swapped. If you send less, you can top up the same address before the deadline, or continue with what arrived. Very small amounts under the minimum are held until you top up.</p></details>
+        <details><summary>Who runs the swap?</summary><p>The swap itself is run by <span class="swapProviderName">a third-party swap service</span>. XmrNest only shows you the quote, the deposit address and the progress. Your coins never pass through XmrNest.</p></details>
+      </div>
+
+      <div class="swap-picker" id="swapPicker" role="dialog" aria-modal="true" aria-label="Choose a coin">
+        <div class="swap-picker-panel card">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px;">
+            <button type="button" class="btn-max" id="swapPickerBack" style="display:none;">&#8592; Back</button>
+            <strong id="swapPickerTitle" style="font-size:15px;">Choose a coin</strong>
+            <button type="button" class="btn-max" id="swapPickerClose" aria-label="Close">&#10005;</button>
+          </div>
+          <div class="input-wrap" style="margin-bottom:10px;"><input id="swapPickerSearch" placeholder="Search" autocomplete="off"></div>
+          <div id="swapPickerList"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div>
+        <strong style="color:var(--black)">XmrNest</strong><br>
+        Support: <a href="mailto:support@xmrnest.org" style="color:var(--orange)">support@xmrnest.org</a>
+      </div>
+      <div class="footer-links">
+        <span>Support & Community</span>
+        <a class="social" href="https://t.me/xmrnest" target="_blank" rel="noopener" aria-label="Telegram">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 3.3 2.9 10.2c-1.2.5-1.2 1.1-.2 1.4l4.6 1.4 1.8 5.5c.2.6.1.8.7.8.5 0 .7-.2 1-.5l2.2-2.1 4.6 3.4c.9.5 1.5.2 1.7-.8l3-14.2c.3-1.2-.5-1.8-1.6-1.4Zm-2.5 3.3-8.3 7.5-.3 3.1-1.8-5.5 10.4-6.5c.5-.3.9-.1.5.4Z"/></svg>
+        </a>
+        <a class="social" href="https://x.com/XMRnest" target="_blank" rel="noopener" aria-label="X">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-6.8 7.8L23.2 22H17l-4.9-6.4L6.5 22H3.3l7.3-8.4L2.9 2h6.4l4.4 5.8L18.9 2Zm-1.1 17.9h1.7L8.4 4H6.6l11.2 15.9Z"/></svg>
+        </a>
+      </div>
+    </footer>
+  </main>
+</div>
+
+<div class="toast" id="toast">Copied</div>
+
+<!-- Core Modular JavaScript Architecture (XmrNest) -->
+<script src="/js/crypto.js?v=ephemeral_8"></script>
+<script src="/js/polyseed.js?v=ephemeral_8"></script>
+<script src="/js/api.js?v=ephemeral_8"></script>
+<script src="/js/wallet.js?v=ephemeral_8"></script>
+<script src="/js/tx.js?v=ephemeral_8"></script>
+<script src="/js/swap.js?v=ephemeral_8"></script>
+<script src="/js/ui.js?v=ephemeral_8"></script>
+<script src="/js/app.js?v=ephemeral_8"></script>
+<link rel="prefetch" href="/js/monero-signer.js?v=ephemeral_8" as="script">
+</body>
+</html>

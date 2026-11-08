@@ -1,0 +1,115 @@
+# Server override: 12 wallet-rpc instances (12 vCPU / 20 GB box): 6 for synced wallets and,
+# with SCAN_LANES=6 in .env, 6 restore lanes (instances 7-12) so deep restores never queue.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.pool8.yml up -d
+# Instances may be APPENDED (placements are stored per wallet); never remove or reorder them
+# while wallets are open on them. Every instance mounts the shared wallet directory, so a
+# wallet can be moved to a free instance (see moneroRpc._relocateIfBlocked).
+services:
+  monero-wallet-rpc-5:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-5
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on: [monerod]
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command: ["--daemon-address=monerod:18081", "--trusted-daemon", "--wallet-dir=/home/monero/wallets", "--rpc-bind-port=18082", "--disable-rpc-login", "--log-file=/home/monero/logs/rpc-5.log", "--log-level=0,wallet.wallet2:DEBUG", "--max-log-file-size=20000000", "--max-log-files=2"]
+    networks: [wallet_net]
+  monero-wallet-rpc-6:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-6
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on: [monerod]
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command: ["--daemon-address=monerod:18081", "--trusted-daemon", "--wallet-dir=/home/monero/wallets", "--rpc-bind-port=18082", "--disable-rpc-login", "--log-file=/home/monero/logs/rpc-6.log", "--log-level=0,wallet.wallet2:DEBUG", "--max-log-file-size=20000000", "--max-log-files=2"]
+    networks: [wallet_net]
+  monero-wallet-rpc-7:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-7
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on: [monerod]
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command: ["--daemon-address=monerod:18081", "--trusted-daemon", "--wallet-dir=/home/monero/wallets", "--rpc-bind-port=18082", "--disable-rpc-login", "--log-file=/home/monero/logs/rpc-7.log", "--log-level=0,wallet.wallet2:DEBUG", "--max-log-file-size=20000000", "--max-log-files=2"]
+    networks: [wallet_net]
+  monero-wallet-rpc-8:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-8
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on: [monerod]
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command: ["--daemon-address=monerod:18081", "--trusted-daemon", "--wallet-dir=/home/monero/wallets", "--rpc-bind-port=18082", "--disable-rpc-login", "--log-file=/home/monero/logs/rpc-8.log", "--log-level=0,wallet.wallet2:DEBUG", "--max-log-file-size=20000000", "--max-log-files=2"]
+    networks: [wallet_net]
+  monero-wallet-rpc-9:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-9
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on: [monerod]
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command: ["--daemon-address=monerod:18081", "--trusted-daemon", "--wallet-dir=/home/monero/wallets", "--rpc-bind-port=18082", "--disable-rpc-login", "--log-file=/home/monero/logs/rpc-9.log", "--log-level=0,wallet.wallet2:DEBUG", "--max-log-file-size=20000000", "--max-log-files=2"]
+    networks: [wallet_net]
+  monero-wallet-rpc-10:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-10
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on: [monerod]
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command: ["--daemon-address=monerod:18081", "--trusted-daemon", "--wallet-dir=/home/monero/wallets", "--rpc-bind-port=18082", "--disable-rpc-login", "--log-file=/home/monero/logs/rpc-10.log", "--log-level=0,wallet.wallet2:DEBUG", "--max-log-file-size=20000000", "--max-log-files=2"]
+    networks: [wallet_net]
+  monero-wallet-rpc-11:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-11
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on: [monerod]
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command: ["--daemon-address=monerod:18081", "--trusted-daemon", "--wallet-dir=/home/monero/wallets", "--rpc-bind-port=18082", "--disable-rpc-login", "--log-file=/home/monero/logs/rpc-11.log", "--log-level=0,wallet.wallet2:DEBUG", "--max-log-file-size=20000000", "--max-log-files=2"]
+    networks: [wallet_net]
+  monero-wallet-rpc-12:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-12
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on: [monerod]
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command: ["--daemon-address=monerod:18081", "--trusted-daemon", "--wallet-dir=/home/monero/wallets", "--rpc-bind-port=18082", "--disable-rpc-login", "--log-file=/home/monero/logs/rpc-12.log", "--log-level=0,wallet.wallet2:DEBUG", "--max-log-file-size=20000000", "--max-log-files=2"]
+    networks: [wallet_net]
+  node-wallet-api:
+    depends_on:
+      - monero-wallet-rpc-5
+      - monero-wallet-rpc-6
+      - monero-wallet-rpc-7
+      - monero-wallet-rpc-8
+      - monero-wallet-rpc-9
+      - monero-wallet-rpc-10
+      - monero-wallet-rpc-11
+      - monero-wallet-rpc-12
+    environment:
+      - WALLET_RPC_URLS=http://monero-wallet-rpc:18082,http://monero-wallet-rpc-2:18082,http://monero-wallet-rpc-3:18082,http://monero-wallet-rpc-4:18082,http://monero-wallet-rpc-5:18082,http://monero-wallet-rpc-6:18082,http://monero-wallet-rpc-7:18082,http://monero-wallet-rpc-8:18082,http://monero-wallet-rpc-9:18082,http://monero-wallet-rpc-10:18082,http://monero-wallet-rpc-11:18082,http://monero-wallet-rpc-12:18082

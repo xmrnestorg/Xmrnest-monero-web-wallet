@@ -1,0 +1,192 @@
+services:
+  monerod:
+    image: ghcr.io/sethforprivacy/simple-monerod:latest
+    container_name: monerod
+    restart: unless-stopped
+    volumes:
+      - ./data/bitmonero:/home/monero/.bitmonero
+    command:
+      - --rpc-bind-ip=0.0.0.0
+      - --confirm-external-bind
+      - --prune-blockchain
+      - --no-igd
+      - --enable-dns-blocklist
+      - --bootstrap-daemon-address=auto
+    networks:
+      - wallet_net
+    ports:
+      - "18080:18080"
+      - "127.0.0.1:18081:18081"
+
+  monero-wallet-rpc:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on:
+      - monerod
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command:
+      - --daemon-address=monerod:18081
+      - --trusted-daemon
+      - --wallet-dir=/home/monero/wallets
+      - --rpc-bind-port=18082
+      - --disable-rpc-login
+      # wallet2 debug lines carry the height of every processed block: the API tails this file
+      # for live restore progress while the instance is busy scanning (see moneroRpc.js).
+      - --log-file=/home/monero/logs/rpc-1.log
+      - --log-level=0,wallet.wallet2:DEBUG
+      - --max-log-file-size=20000000
+      - --max-log-files=2
+    networks:
+      - wallet_net
+    ports:
+      - "127.0.0.1:18082:18082"
+
+  monero-wallet-rpc-2:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-2
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on:
+      - monerod
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command:
+      - --daemon-address=monerod:18081
+      - --trusted-daemon
+      - --wallet-dir=/home/monero/wallets
+      - --rpc-bind-port=18082
+      - --disable-rpc-login
+      # wallet2 debug lines carry the height of every processed block: the API tails this file
+      # for live restore progress while the instance is busy scanning (see moneroRpc.js).
+      - --log-file=/home/monero/logs/rpc-2.log
+      - --log-level=0,wallet.wallet2:DEBUG
+      - --max-log-file-size=20000000
+      - --max-log-files=2
+    networks:
+      - wallet_net
+    ports:
+      - "127.0.0.1:18083:18082"
+
+  monero-wallet-rpc-3:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-3
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on:
+      - monerod
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command:
+      - --daemon-address=monerod:18081
+      - --trusted-daemon
+      - --wallet-dir=/home/monero/wallets
+      - --rpc-bind-port=18082
+      - --disable-rpc-login
+      # wallet2 debug lines carry the height of every processed block: the API tails this file
+      # for live restore progress while the instance is busy scanning (see moneroRpc.js).
+      - --log-file=/home/monero/logs/rpc-3.log
+      - --log-level=0,wallet.wallet2:DEBUG
+      - --max-log-file-size=20000000
+      - --max-log-files=2
+    networks:
+      - wallet_net
+    ports:
+      - "127.0.0.1:18084:18082"
+
+  monero-wallet-rpc-4:
+    image: chekist32/monero-wallet-rpc:latest
+    container_name: monero-wallet-rpc-4
+    restart: unless-stopped
+    init: true                 # forward SIGTERM so wallet-rpc stores its wallet on stop
+    stop_grace_period: 90s
+    depends_on:
+      - monerod
+    volumes:
+      - ./data/wallets:/home/monero/wallets
+      - ./data/rpclogs:/home/monero/logs
+    command:
+      - --daemon-address=monerod:18081
+      - --trusted-daemon
+      - --wallet-dir=/home/monero/wallets
+      - --rpc-bind-port=18082
+      - --disable-rpc-login
+      # wallet2 debug lines carry the height of every processed block: the API tails this file
+      # for live restore progress while the instance is busy scanning (see moneroRpc.js).
+      - --log-file=/home/monero/logs/rpc-4.log
+      - --log-level=0,wallet.wallet2:DEBUG
+      - --max-log-file-size=20000000
+      - --max-log-files=2
+    networks:
+      - wallet_net
+    ports:
+      - "127.0.0.1:18085:18082"
+
+  wallet-redis:
+    image: redis:7-alpine
+    container_name: wallet-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/redis:/data
+    # REDIS_PASSWORD comes from .env (empty = no auth; set one on any shared host).
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1", "--requirepass", "${REDIS_PASSWORD:-}"]
+    networks:
+      - wallet_net
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  node-wallet-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: xmrnest-node-backend:latest
+    container_name: node-wallet-api
+    restart: unless-stopped
+    stop_grace_period: 30s       # lets the API store open wallets on shutdown
+    depends_on:
+      - monerod
+      - monero-wallet-rpc
+      - monero-wallet-rpc-2
+      - monero-wallet-rpc-3
+      - monero-wallet-rpc-4
+      - wallet-redis
+    volumes:
+      - ./public:/app/public:ro
+      - ./backend:/app:ro
+      - ./data/rpclogs:/rpclogs:ro   # live scan progress (see RPC_LOG_DIR); not under /app (read-only)
+    # Server-only secrets (swap gateway URL/key, Redis password...). See .env.example.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - PORT=8080
+      - NODE_ENV=production
+      - DOCKER_ENV=true
+      - DAEMON_URL=http://monerod:18081
+      - WALLET_RPC_URL=http://monero-wallet-rpc:18082
+      # Pool: each wallet address is pinned to one instance by hash (see moneroRpc.js).
+      # Keep this list stable while the instances are running.
+      - WALLET_RPC_URLS=http://monero-wallet-rpc:18082,http://monero-wallet-rpc-2:18082,http://monero-wallet-rpc-3:18082,http://monero-wallet-rpc-4:18082
+      - RPC_LOCK_TIMEOUT_MS=30000
+      - CACHE_TTL_SECONDS=20
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@wallet-redis:6379
+      - PUBLIC_DIR=/app/public
+      - RPC_LOG_DIR=/rpclogs
+    networks:
+      - wallet_net
+    ports:
+      - "80:8080"
+      - "127.0.0.1:8080:8080"   # local tests only; not reachable from outside
+
+networks:
+  wallet_net:
+    driver: bridge
+

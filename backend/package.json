@@ -1,0 +1,14 @@
+{
+  "name": "xmrnest-wallet",
+  "version": "3.0.0",
+  "description": "XmrNest: non-custodial Monero web wallet (watch-only server, browser-side signing)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "AGPL-3.0-only"
+}

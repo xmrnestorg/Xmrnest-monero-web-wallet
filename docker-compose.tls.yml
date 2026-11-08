@@ -1,0 +1,28 @@
+# Optional HTTPS front (Caddy). Use together with docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.pool8.yml -f docker-compose.tls.yml up -d
+# The API then listens only inside the Docker network; Caddy owns ports 80/443.
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: xmrnest-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - node-wallet-api
+    networks:
+      - wallet_net
+
+  node-wallet-api:
+    ports: !reset []
+    expose:
+      - "8080"
+
+volumes:
+  caddy_data:
+  caddy_config:
